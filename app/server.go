@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -21,6 +22,7 @@ func main() {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
+	defer conn.Close()
 
 	buf := make([]byte, 1024)
 	_, err = conn.Read(buf)
@@ -28,11 +30,25 @@ func main() {
 		fmt.Printf("Error while reading request: %s\n", err.Error())
 	}
 
-	resp := "HTTP/1.1 200 OK\r\n\r\n"
-	_, err = conn.Write([]byte(resp))
-	if err != nil {
-		fmt.Printf("Error while writing response: %s\n", err.Error())
+	req_parts := strings.Split(string(buf), "\r\n")
+	request_line := req_parts[0]
+	fmt.Println(request_line)
+	req_line_parts := strings.Split(request_line, " ")
+	path := req_line_parts[1]
+	if path == "/" {
+		resp := "HTTP/1.1 200 OK\r\n\r\n"
+		_, err = conn.Write([]byte(resp))
+		if err != nil {
+			fmt.Printf("Error while writing response: %s\n", err.Error())
+			return
+		}
+	} else {
+		resp := "HTTP/1.1 404 Not Found\r\n\r\n"
+		_, err = conn.Write([]byte(resp))
+		if err != nil {
+			fmt.Printf("Error while writing response: %s\n", err.Error())
+			return
+		}
 	}
 
-	conn.Close()
 }

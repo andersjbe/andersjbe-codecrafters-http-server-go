@@ -30,12 +30,18 @@ func main() {
 		fmt.Printf("Error while reading request: %s\n", err.Error())
 	}
 
+	// Extract path
 	req_parts := strings.Split(string(buf), "\r\n")
 	request_line := req_parts[0]
 	fmt.Println(request_line)
 	req_line_parts := strings.Split(request_line, " ")
 	path := req_line_parts[1]
-	if path == "/" {
+
+	// Handle request
+	if strings.HasPrefix(path, "/echo/") {
+		str, _ := strings.CutPrefix(path, "/echo/")
+		echo_handler(conn, str)
+	} else if path == "/" {
 		resp := "HTTP/1.1 200 OK\r\n\r\n"
 		_, err = conn.Write([]byte(resp))
 		if err != nil {
@@ -50,5 +56,13 @@ func main() {
 			return
 		}
 	}
+}
 
+func echo_handler(conn net.Conn, path_var string) {
+	resp := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(path_var), path_var)
+	_, err := conn.Write([]byte(resp))
+	if err != nil {
+		fmt.Printf("Error while writing response: %s\n", err.Error())
+		return
+	}
 }

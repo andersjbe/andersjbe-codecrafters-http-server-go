@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -66,7 +67,11 @@ func (resp Response) get_response_string() string {
 
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
+
 	fmt.Println("Logs from your program will appear here!")
+
+	file_dir := flag.String("directory", "/tmp/", "The directory to read files from")
+	flag.Parse()
 
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
@@ -94,6 +99,8 @@ func main() {
 			if strings.HasPrefix(r.Path, "/echo/") {
 				str, _ := strings.CutPrefix(r.Path, "/echo/")
 				echo_handler(conn, str)
+			} else if strings.HasPrefix(r.Path, "/files/") {
+				file_handler(conn, r, *file_dir)
 			} else if r.Path == "/user-agent" {
 				user_agent_handler(conn, r)
 			} else if r.Path == "/" {
@@ -136,6 +143,39 @@ func user_agent_handler(conn net.Conn, r Request) {
 	}
 
 	_, err := conn.Write([]byte(resp.get_response_string()))
+	if err != nil {
+		fmt.Printf("Error while writing response: %s\n", err.Error())
+		return
+	}
+}
+
+func file_handler(conn net.Conn, r Request, dir string) {
+	resp := ""
+	file_name := strings.TrimPrefix(r.Path, "/files/")
+	file_bytes, err := os.ReadFile(dir + file_name)
+	if err != nil {
+		fmt.Println(dir + file_name)
+		fmt.Println(err.Error())
+		resp = Response{
+			Code:    404,
+			Status:  "Not Found",
+			Headers: make(map[string]interface{}),
+			Body:    "",
+		}.get_response_string()
+	} else {
+		contents := string(file_bytes)
+		resp = Response{
+			Code:   200,
+			Status: "OK",
+			Body:   contents,
+			Headers: map[string]interface{}{
+				"Content-Type":   "application/octet-stream",
+				"Content-Length": fmt.Sprintf("%d", len(contents)),
+			},
+		}.get_response_string()
+	}
+
+	_, err = conn.Write([]byte(resp))
 	if err != nil {
 		fmt.Printf("Error while writing response: %s\n", err.Error())
 		return

@@ -99,7 +99,6 @@ func main() {
 
 			// Handle request
 			if strings.HasPrefix(r.Path, "/echo/") {
-
 				echo_handler(conn, r)
 			} else if strings.HasPrefix(r.Path, "/files/") {
 				if r.Method == "GET" {
@@ -132,7 +131,7 @@ func echo_handler(conn net.Conn, r Request) {
 
 	headers := map[string]interface{}{
 		"Content-Type":   "text/plain",
-		"Content-Length": len(path_var),
+		"Content-Length": fmt.Sprintf("%d", len(path_var)),
 	}
 
 	encType := r.Headers["Accept-Encoding"]

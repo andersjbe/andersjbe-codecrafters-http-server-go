@@ -100,7 +100,11 @@ func main() {
 				str, _ := strings.CutPrefix(r.Path, "/echo/")
 				echo_handler(conn, str)
 			} else if strings.HasPrefix(r.Path, "/files/") {
-				file_handler(conn, r, *file_dir)
+				if r.Method == "GET" {
+					read_file_handler(conn, r, *file_dir)
+				} else if r.Method == "POST" {
+					upload_file_handler(conn, r, *file_dir)
+				}
 			} else if r.Path == "/user-agent" {
 				user_agent_handler(conn, r)
 			} else if r.Path == "/" {
@@ -149,7 +153,7 @@ func user_agent_handler(conn net.Conn, r Request) {
 	}
 }
 
-func file_handler(conn net.Conn, r Request, dir string) {
+func read_file_handler(conn net.Conn, r Request, dir string) {
 	resp := ""
 	file_name := strings.TrimPrefix(r.Path, "/files/")
 	file_bytes, err := os.ReadFile(dir + file_name)
@@ -176,6 +180,33 @@ func file_handler(conn net.Conn, r Request, dir string) {
 	}
 
 	_, err = conn.Write([]byte(resp))
+	if err != nil {
+		fmt.Printf("Error while writing response: %s\n", err.Error())
+		return
+	}
+}
+
+func upload_file_handler(conn net.Conn, r Request, dir string) {
+	file_name := strings.TrimPrefix(r.Path, "/files/")
+	file, err := os.Create(dir + file_name)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	fmt.Printf("197\t%s", r.Body)
+	_, err = file.WriteString(strings.ReplaceAll(r.Body, "\x00", ""))
+	file.Close()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	resp := Response{
+		Status: "Created",
+		Code:   201,
+	}
+	_, err = conn.Write([]byte(resp.get_response_string()))
 	if err != nil {
 		fmt.Printf("Error while writing response: %s\n", err.Error())
 		return

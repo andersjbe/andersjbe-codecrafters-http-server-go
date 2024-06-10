@@ -74,41 +74,43 @@ func main() {
 		os.Exit(1)
 	}
 
-	conn, err := l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
-	}
-	defer conn.Close()
-
-	buf := make([]byte, 1024)
-	_, err = conn.Read(buf)
-	if err != nil {
-		fmt.Printf("Error while reading request: %s\n", err.Error())
-	}
-
-	r := parse_request(string(buf))
-
-	// Handle request
-	if strings.HasPrefix(r.Path, "/echo/") {
-		str, _ := strings.CutPrefix(r.Path, "/echo/")
-		echo_handler(conn, str)
-	} else if r.Path == "/user-agent" {
-		user_agent_handler(conn, r)
-	} else if r.Path == "/" {
-		resp := "HTTP/1.1 200 OK\r\n\r\n"
-		_, err = conn.Write([]byte(resp))
+	for {
+		conn, err := l.Accept()
 		if err != nil {
-			fmt.Printf("Error while writing response: %s\n", err.Error())
-			return
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
 		}
-	} else {
-		resp := "HTTP/1.1 404 Not Found\r\n\r\n"
-		_, err = conn.Write([]byte(resp))
-		if err != nil {
-			fmt.Printf("Error while writing response: %s\n", err.Error())
-			return
-		}
+
+		func(conn net.Conn) {
+			buf := make([]byte, 1024)
+			_, err = conn.Read(buf)
+			if err != nil {
+				fmt.Printf("Error while reading request: %s\n", err.Error())
+			}
+
+			r := parse_request(string(buf))
+
+			// Handle request
+			if strings.HasPrefix(r.Path, "/echo/") {
+				str, _ := strings.CutPrefix(r.Path, "/echo/")
+				echo_handler(conn, str)
+			} else if r.Path == "/user-agent" {
+				user_agent_handler(conn, r)
+			} else if r.Path == "/" {
+				resp := "HTTP/1.1 200 OK\r\n\r\n"
+				_, err = conn.Write([]byte(resp))
+				if err != nil {
+					fmt.Printf("Error while writing response: %s\n", err.Error())
+				}
+			} else {
+				resp := "HTTP/1.1 404 Not Found\r\n\r\n"
+				_, err = conn.Write([]byte(resp))
+				if err != nil {
+					fmt.Printf("Error while writing response: %s\n", err.Error())
+				}
+			}
+			conn.Close()
+		}(conn)
 	}
 }
 

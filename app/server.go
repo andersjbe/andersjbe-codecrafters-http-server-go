@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -65,9 +66,10 @@ func (resp Response) get_response_string() string {
 	return str
 }
 
+var valid_encodings []string = []string{"gzip"}
+
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
-
 	fmt.Println("Logs from your program will appear here!")
 
 	file_dir := flag.String("directory", "/tmp/", "The directory to read files from")
@@ -97,8 +99,8 @@ func main() {
 
 			// Handle request
 			if strings.HasPrefix(r.Path, "/echo/") {
-				str, _ := strings.CutPrefix(r.Path, "/echo/")
-				echo_handler(conn, str)
+
+				echo_handler(conn, r)
 			} else if strings.HasPrefix(r.Path, "/files/") {
 				if r.Method == "GET" {
 					read_file_handler(conn, r, *file_dir)
@@ -125,8 +127,25 @@ func main() {
 	}
 }
 
-func echo_handler(conn net.Conn, path_var string) {
-	resp := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(path_var), path_var)
+func echo_handler(conn net.Conn, r Request) {
+	path_var, _ := strings.CutPrefix(r.Path, "/echo/")
+
+	headers := map[string]interface{}{
+		"Content-Type":   "text/plain",
+		"Content-Length": len(path_var),
+	}
+
+	encType := r.Headers["Accept-Encoding"]
+	if slices.Contains(valid_encodings, encType) {
+		headers["Content-Encoding"] = encType
+	}
+
+	resp := Response{
+		Code:    200,
+		Status:  "OK",
+		Headers: headers,
+		Body:    path_var,
+	}.get_response_string()
 	_, err := conn.Write([]byte(resp))
 	if err != nil {
 		fmt.Printf("Error while writing response: %s\n", err.Error())
